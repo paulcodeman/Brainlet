@@ -8,7 +8,7 @@ function convertToNumber(str) {
   return str;
 }
 
-class BrainLang {
+class Brainlet {
   constructor() {
     this.memory = new Array(100).fill(0); // инициализация памяти
     this.pointer = 0; // указатель на текущую ячейку памяти
@@ -97,5 +97,5 @@ class BrainLang {
 
 const code = ',>,*.';
 
-const vm = new BrainLang();
+const vm = new Brainlet();
 vm.run(code);
