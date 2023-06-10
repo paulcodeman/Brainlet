@@ -1,101 +1,125 @@
 function convertToNumber(str) {
-  // Проверяем, является ли строка числом
-  if (/^-?\d+(\.\d+)?$/.test(str)) {
-    // Преобразуем строку в число и возвращаем его
-    return Number(str);
-  }
-  // Если строка не является числом, возвращаем ее как есть
-  return str;
+    if (/^-?\d+(\.\d+)?$/.test(str)) {
+        return parseFloat(str); // Используем parseFloat для преобразования строки в число с плавающей точкой
+    }
+    return str;
 }
 
 class Brainlet {
-  constructor() {
-    this.memory = new Array(100).fill(0); // инициализация памяти
-    this.pointer = 0; // указатель на текущую ячейку памяти
-    this.stack = []; // стек для хранения адресов начала циклов
-    this.buffer = '';
-    this.stringEnable = false;
-    this.integerEnable = false;
-  }
-
-  run(code) {
-    let i = 0;
-
-    while (i < code.length) {
-      switch (code[i]) {
-        case '>':
-          this.pointer++;
-          break;
-        case '<':
-          this.pointer--;
-          break;
-        case '+':
-          this.memory[this.pointer] = this.memory[this.pointer-1]+this.memory[this.pointer];
-          break;
-        case '-':
-          this.memory[this.pointer] = this.memory[this.pointer-1]-this.memory[this.pointer];
-          break;
-        case '*':
-          this.memory[this.pointer] = this.memory[this.pointer-1]*this.memory[this.pointer];
-          break;
-        case '/':
-          this.memory[this.pointer] = this.memory[this.pointer-1]/this.memory[this.pointer];
-          break;
-        case '.':
-          document.write(this.memory[this.pointer]);
-          break;
-        case ',':
-          this.memory[this.pointer] = convertToNumber(prompt('Введите текст'));
-          break;
-        case '[':
-          if (this.memory[this.pointer] === 0) {
-            let counter = 1;
-            while (counter > 0) {
-              i++;
-              if (code[i] === '[') counter++;
-              else if (code[i] === ']') counter--;
-            }
-          } else {
-            this.stack.push(i);
-          }
-          break;
-        case ']':
-          if (this.memory[this.pointer] !== 0) {
-            i = this.stack[this.stack.length - 1];
-          } else {
-            this.stack.pop();
-          }
-          break;
-        default:
-          if (code[i] == '"') {
-              if (this.stringEnable) {
-                this.memory[this.pointer] = this.buffer;
-                this.buffer = '';
-              }
-              this.stringEnable = !this.stringEnable;
-            }
-            else if (this.stringEnable) {
-              this.buffer += code[i++];
-              continue;
-            }
-            else if (/\d/.test(code[i])) {
-              let num = '';
-              while (/\d/.test(code[i])) {
-                num += code[i++];
-              }
-              this.memory[this.pointer] = parseInt(num);
-              continue;
-            }
-          break;
-      }
-      i++;
+    constructor() {
+        this.memory = Array(100).fill([0, 0]); // Используем fill для заполнения массива значениями [0, 0]
+        this.pointer = 0;
+        this.stack = [];
+        this.buffer = '';
+        this.string = false;
+        this.block = false;
+        this.global = {};
+        this.memory[0] = [0, 0];
     }
-  }
+
+    push(value) {
+        const stack = this.memory[this.pointer];
+        stack[0]++;
+        stack.push(value); // Используем метод push для добавления значения в конец массива
+    }
+
+    pop() {
+        const stack = this.memory[this.pointer];
+        if (stack[0] > 0) {
+            stack[0]--;
+            return stack.pop(); // Используем метод pop для извлечения последнего значения из массива
+        }
+        return null;
+    }
+
+    merge(value1, value2) {
+        const mergedArray = [...value1, ...value2.slice(2)]; // Используем операторы расширения и срез для объединения массивов
+        mergedArray[0] = value1[0] + value2[0];
+        return mergedArray;
+    }
+
+    run(code) {
+        let command = '';
+        let temp = '';
+
+        code += ' ';
+
+        for (let i = 0; i < code.length; i++) {
+            const symbol = code[i];
+            if (symbol === '"') {
+                this.string = !this.string;
+            } else if (symbol === '{') {
+                this.block = true;
+            } else if (symbol === '}') {
+                this.block = false;
+            }
+            if (this.string || this.block) {
+                temp += symbol;
+            } else if (symbol === ' ' || symbol === "\n" || symbol === "\r") {
+                if (/^-?\d+(\.\d+)?$/.test(command)) {
+                    this.push(parseFloat(command));
+                } else if (/^".*$/.test(temp)) {
+                    this.push(temp.substring(1));
+                    temp = '';
+                } else if (/^{.*$/.test(temp)) {
+                    this.push(temp.substring(1));
+                    temp = '';
+                } else {
+                    switch (command) {
+                        case 'set':
+                            const name = this.pop();
+                            this.global[name] = this.memory[this.pointer];
+                            this.memory[this.pointer] = [0, 0];
+                            break;
+                        case 'get':
+                            this.memory[this.pointer] = this.merge(this.memory[this.pointer], this.global[this.pop()]);
+                            break;
+                        case '+':
+                        case '-':
+                        case '*':
+                        case '/':
+                        {
+                            const stack = this.memory[this.pointer];
+                            let ret = stack[2];
+                            for (let j = 1; j < stack[0]; j++) {
+                                const item = stack[j+2];
+                                if (command === '+') {
+                                    ret += item;
+                                } else if (command === '*') {
+                                    ret *= item;
+                                } else if (command === '-') {
+                                    ret -= item;
+                                } else if (command === '/') {
+                                    ret /= item;
+                                }
+                            }
+                            this.memory[this.pointer] = [1, 0, ret];
+                            break;
+                        }
+                        case '.':
+                            console.log(this.memory[this.pointer]);
+                            break;
+                        case ',':
+                            this.push(convertToNumber(prompt('Введите текст')));
+                            break;
+                        default:
+                            this.push(command);
+                    }
+                }
+
+                command = '';
+            } else {
+                command += symbol;
+            }
+        }
+    }
 }
+
+
 
 // Пример использования
 
-const code = ',>,*.';
+const code = ', name set "Hello " name get + .';
 
 const vm = new Brainlet();
 vm.run(code);
