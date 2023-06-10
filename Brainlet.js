@@ -1,6 +1,6 @@
 function convertToNumber(str) {
   // Проверяем, является ли строка числом
-  if (/^-?\d*\.?\d+$/.test(str)) {
+  if (/^-?\d+(\.\d+)?$/.test(str)) {
     // Преобразуем строку в число и возвращаем его
     return Number(str);
   }
